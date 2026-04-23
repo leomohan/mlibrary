@@ -1,29 +1,40 @@
 # Leo Mohan Reader Library
 
-A standalone progressive web app prototype for approved readers to browse books by genre, read free titles, follow new releases, and leave feedback for the author.
+A standalone progressive web app for approved readers to browse books by genre, read free titles, follow new releases, and leave feedback for the author. The app is now wired for Supabase Auth, Database, and Storage.
 
 ## What is included
 
-- Reader registration request form with manual admin approval flow
-- Login for approved readers and a protected admin interface
-- Genre-based catalog with cover thumbnails, summaries, and detail views
-- Free-reader mode for selected books
+- Reader registration with Supabase Auth and manual admin approval flow
+- Email/password login plus a protected admin interface
+- Genre-based catalog backed by Supabase tables
+- Free-reader mode for approved accounts
 - External Amazon and Smashwords links for paid titles
-- Reader comments and star ratings stored locally in the app
+- Reader comments and star ratings stored centrally in Supabase
 - Share action using the Web Share API with a clipboard fallback
 - Author news, latest release, about section, and official website link
+- Supabase Storage upload flow for book cover thumbnails
 - PWA install manifest and offline cache service worker
 
-## Default admin access
+## Supabase setup
 
-- Username: `admin`
-- Password: `change-me-now`
+1. Open [supabase-config.js](/Users/user/Documents/Playground/author-books-pwa/supabase-config.js) and paste:
+   - your `Project URL`
+   - your `anon public key`
+2. Run [step8-supabase-setup.sql](/Users/user/Documents/Playground/author-books-pwa/supabase/step8-supabase-setup.sql) in the Supabase SQL editor.
+3. In Supabase Auth, add your local and production URLs to the allowed redirect/site URLs.
+4. Sign up once with your own email, then promote yourself to admin:
 
-Change those credentials before using the app beyond local prototyping.
+```sql
+update public.profiles
+set role = 'admin', approval_status = 'approved'
+where email = 'YOUR-EMAIL@example.com';
+```
+
+5. Optional but recommended: disable mandatory email confirmation while testing, so reader sign-up is smoother on localhost.
 
 ## Run locally
 
-This app is dependency-free and can be served as static files:
+This app is a static browser app and can be served as plain files:
 
 ```bash
 cd /Users/user/Documents/Playground/author-books-pwa
@@ -32,10 +43,12 @@ python3 -m http.server 8080
 
 Then open [http://localhost:8080](http://localhost:8080).
 
-## Important prototype notes
+## Important notes
 
-- Data persistence currently uses `localStorage`, so content is stored per browser on the current device.
-- Reader comments are saved inside the app and also open a `mailto:` draft to the configured author email.
-- Registration requests are saved inside the app and also open a `mailto:` draft to `leomohan@yahoo.com` by default for approval.
+- Users sign in with email and password through Supabase Auth.
+- Admin approval is handled through `profiles.approval_status`.
+- Reader comments still open a `mailto:` draft to the configured author email after being saved.
+- Registration requests still open a `mailto:` draft to `leomohan@yahoo.com` by default after signup.
+- The frontend uses the Supabase anon key, which is expected for browser apps.
 - Social networks will only show rich thumbnail previews after deployment on a real domain with proper Open Graph tags.
-- For production use, the next step is to replace local storage with a backend or Firebase setup for real authentication, approvals, email delivery, and centralized book management.
+- For production use, you may still want an external email service for fully automatic approval notifications instead of `mailto:` drafts.
