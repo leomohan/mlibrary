@@ -1,0 +1,23 @@
+{
+  "name": "Leo Mohan Reader Library",
+  "short_name": "Leo Library",
+  "description": "A progressive web app for approved readers to discover Leo Mohan books, updates, and free reading access.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
