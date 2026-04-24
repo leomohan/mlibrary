@@ -42,6 +42,7 @@ const supabase = isConfigured
   : null;
 
 let installPrompt = null;
+let refreshTimer = null;
 let db = {
   settings: { ...defaultSettings },
   news: [],
@@ -277,6 +278,16 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString();
 }
 
+function ensureRefreshTimer() {
+  if (!isConfigured || refreshTimer) return;
+
+  refreshTimer = window.setInterval(async () => {
+    if (document.hidden) return;
+    await refreshData();
+    buildApp();
+  }, 30000);
+}
+
 async function initializeApp() {
   buildApp();
 
@@ -290,6 +301,7 @@ async function initializeApp() {
   await refreshData();
   ui.loading = false;
   buildApp();
+  ensureRefreshTimer();
 
   supabase.auth.onAuthStateChange(async () => {
     await refreshSession();
@@ -490,10 +502,11 @@ function buildApp() {
                     <div class="inline-actions">
                       ${
                         isAdmin()
-                          ? `<button class="primary-button" data-action="jump-admin">Open Admin</button>`
-                          : `<button class="primary-button" data-action="jump-library">Open Library</button>`
+                          ? `<button class="primary-button" type="button" data-action="jump-admin">Open Admin</button>`
+                          : `<button class="primary-button" type="button" data-action="jump-library">Open Library</button>`
                       }
-                      <button class="ghost-button" data-action="logout">Sign out</button>
+                      <button class="ghost-button" type="button" data-action="refresh-data">Refresh Data</button>
+                      <button class="ghost-button" type="button" data-action="logout">Sign out</button>
                     </div>
                   </div>
                 `
@@ -746,7 +759,10 @@ function renderAdminPanel() {
           <p class="eyebrow">Admin</p>
           <h3>Author control panel</h3>
         </div>
-        <p class="hint">Admin users can approve readers, edit library content, and upload book covers into Supabase Storage.</p>
+        <div class="inline-actions">
+          <button class="ghost-button" type="button" data-action="refresh-data">Refresh pending requests</button>
+          <p class="hint">Admin users can approve readers, edit library content, and upload book covers into Supabase Storage.</p>
+        </div>
       </div>
 
       <div class="admin-grid">
@@ -767,7 +783,7 @@ function renderAdminPanel() {
                         </label>
                         <div class="inline-actions">
                           <button class="primary-button" type="submit">Approve</button>
-                          <button class="ghost-button" type="button" data-action="reject-request" data-request-id="${escapeHtml(request.id)}">Reject</button>
+                      <button class="ghost-button" type="button" data-action="reject-request" data-request-id="${escapeHtml(request.id)}">Reject</button>
                         </div>
                       </form>
                     `
@@ -854,8 +870,8 @@ function renderAdminPanel() {
                             <p>${escapeHtml(book.genre)} • ${book.isFree ? "Free" : "Store linked"} • ${escapeHtml(book.status)}</p>
                           </div>
                           <div class="inline-actions">
-                            <button class="ghost-button" data-action="edit-book" data-book-id="${escapeHtml(book.id)}">Edit</button>
-                            <button class="ghost-button" data-action="toggle-retire" data-book-id="${escapeHtml(book.id)}">
+                            <button class="ghost-button" type="button" data-action="edit-book" data-book-id="${escapeHtml(book.id)}">Edit</button>
+                            <button class="ghost-button" type="button" data-action="toggle-retire" data-book-id="${escapeHtml(book.id)}">
                               ${book.status === "retired" ? "Restore" : "Retire"}
                             </button>
                           </div>
@@ -974,9 +990,15 @@ function bindEvents() {
   document.querySelector("#news-form")?.addEventListener("submit", handleNewsSubmit);
   document.querySelector("#book-form")?.addEventListener("submit", handleBookSave);
 
-  document.querySelector("[data-action='logout']")?.addEventListener("click", async () => {
-    await supabase.auth.signOut();
+  document.querySelectorAll("[data-action='refresh-data']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await refreshSession();
+      await refreshData();
+      buildApp();
+    });
   });
+
+  document.querySelector("[data-action='logout']")?.addEventListener("click", handleLogout);
 
   document.querySelector("[data-action='jump-admin']")?.addEventListener("click", () => {
     document.querySelector("#admin-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1075,6 +1097,22 @@ async function handleLogin(event) {
   }
 
   event.currentTarget.reset();
+}
+
+async function handleLogout() {
+  if (!supabase) return;
+
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  ui.session = null;
+  ui.profile = null;
+  await refreshData();
+  setSelectedBookId(null);
+  buildApp();
 }
 
 async function handleRegistrationRequest(event) {
@@ -1378,6 +1416,13 @@ window.addEventListener("hashchange", () => {
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   installPrompt = event;
+  buildApp();
+});
+
+window.addEventListener("focus", async () => {
+  if (!isConfigured) return;
+  await refreshSession();
+  await refreshData();
   buildApp();
 });
 
